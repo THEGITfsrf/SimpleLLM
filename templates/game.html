@@ -1,0 +1,341 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Zombie Survival Simulator</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #1a1a2e, #16213e);
+            color: #fff;
+            overflow: hidden;
+            cursor: crosshair;
+        }
+        
+        #game-container {
+            position: relative;
+            width: 100vw;
+            height: 100vh;
+        }
+        
+        #game-over-modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.8);
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+        }
+        
+        #modal-content {
+            background: linear-gradient(135deg, #2d1b36, #1a1a2e);
+            padding: 40px 60px;
+            border-radius: 20px;
+            text-align: center;
+            box-shadow: 0 0 30px rgba(255, 107, 107, 0.5);
+            border: 2px solid #e91e63;
+        }
+        
+        #modal-content h2 {
+            font-size: 2.5em;
+            color: #e91e63;
+            margin-bottom: 20px;
+        }
+        
+        #final-score {
+            font-size: 1.5em;
+            color: #fff;
+            margin: 20px 0;
+        }
+        
+        button {
+            background: linear-gradient(135deg, #e91e63, #ff7368);
+            color: #fff;
+            border: none;
+            padding: 15px 40px;
+            font-size: 1.2em;
+            border-radius: 30px;
+            cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s;
+            margin-top: 20px;
+        }
+        
+        button:hover {
+            transform: scale(1.05);
+            box-shadow: 0 0 20px rgba(233, 30, 99, 0.5);
+        }
+        
+        #ui-bar {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 60px;
+            background: rgba(0, 0, 0, 0.7);
+            display: flex;
+            justify-content: space-around;
+            align-items: center;
+            border-bottom: 2px solid #e91e63;
+            z-index: 100;
+        }
+        
+        .ui-element {
+            text-align: center;
+        }
+        
+        .ui-element span {
+            font-size: 1.2em;
+            font-weight: bold;
+        }
+        
+        .ui-element small {
+            font-size: 0.7em;
+            color: #aaa;
+        }
+        
+        #game-canvas {
+            position: absolute;
+            top: 60px;
+            left: 0;
+            width: 100%;
+            height: 100%;
+        }
+        
+        #tutorial {
+            position: fixed;
+            bottom: 80px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(0, 0, 0, 0.7);
+            padding: 15px 30px;
+            border-radius: 10px;
+            text-align: center;
+            z-index: 50;
+            display: none;
+        }
+        
+        #tutorial h3 {
+            color: #e91e63;
+            margin-bottom: 10px;
+        }
+        
+        #tutorial p {
+            color: #fff;
+        }
+    </style>
+</head>
+<body>
+    <div id="game-container">
+        <div id="ui-bar">
+            <div class="ui-element">
+                <span id="score">Score: 0</span>
+                <small>Points per zombie: 10</small>
+            </div>
+            <div class="ui-element">
+                <span id="zombies">Zombies: 0/10</span>
+                <small>Keep them below 10!</small>
+            </div>
+            <div class="ui-element">
+                <span id="active">Status: Ready</span>
+            </div>
+        </div>
+        <canvas id="game-canvas"></canvas>
+        <div id="tutorial">
+            <h3>🎮 Zombie Survival!</h3>
+            <p>Click on zombies to shoot them!</p>
+            <p>Score up as you kill more zombies!</p>
+            <p>Stop them from reaching 10 on screen!</p>
+        </div>
+        <div id="game-over-modal">
+            <div id="modal-content">
+                <h2>💀 Game Over 💀</h2>
+                <p>You let too many zombies escape!</p>
+                <div id="final-score">Final Score: 0</div>
+                <button onclick="location.reload()">🔄 Play Again</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('game-canvas');
+        const ctx = canvas.getContext('2d');
+        const scoreEl = document.getElementById('score');
+        const zombiesEl = document.getElementById('zombies');
+        const activeEl = document.getElementById('active');
+        const tutorial = document.getElementById('tutorial');
+        const gameOverModal = document.getElementById('game-over-modal');
+        const finalScoreEl = document.getElementById('final-score');
+
+        let gameActive = true;
+        let zombies = [];
+        let score = 0;
+        let zombiesOnScreen = 0;
+        let lastSpawnTime = 0;
+        let spawnRate = 1500;
+        let frameCount = 0;
+        
+        function resizeCanvas() {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight - 80;
+        }
+        
+        resizeCanvas();
+        window.addEventListener('resize', resizeCanvas);
+        
+        function drawBackground() {
+            ctx.fillStyle = '#1a1a2e';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            
+            // Draw grid
+            ctx.strokeStyle = 'rgba(255, 255, 255, 0.05)';
+            ctx.lineWidth = 1;
+            for (let x = 0; x < canvas.width; x += 50) {
+                ctx.beginPath();
+                ctx.moveTo(x, 0);
+                ctx.lineTo(x, canvas.height);
+                ctx.stroke();
+            }
+            for (let y = 0; y < canvas.height; y += 50) {
+                ctx.beginPath();
+                ctx.moveTo(0, y);
+                ctx.lineTo(canvas.width, y);
+                ctx.stroke();
+            }
+        }
+        
+        function drawZombie(z) {
+            ctx.save();
+            ctx.translate(z.x, z.y);
+            
+            // Body
+            ctx.fillStyle = '#ff5722';
+            ctx.beginPath();
+            ctx.moveTo(10, 0);
+            ctx.lineTo(-5, 15);
+            ctx.lineTo(-5, -15);
+            ctx.lineTo(10, 0);
+            ctx.fill();
+            
+            // Eyes
+            ctx.fillStyle = '#fff';
+            ctx.beginPath();
+            ctx.arc(-3, -5, 3, 0, Math.PI * 2);
+            ctx.arc(3, -5, 3, 0, Math.PI * 2);
+            ctx.fill();
+            
+            ctx.fillStyle = '#000';
+            ctx.beginPath();
+            ctx.arc(-3, -5, 1, 0, Math.PI * 2);
+            ctx.arc(3, -5, 1, 0, Math.PI * 2);
+            ctx.fill();
+            
+            ctx.restore();
+        }
+        
+        function spawnZombie() {
+            const x = Math.random() * canvas.width;
+            const y = canvas.height;
+            zombies.push({ x, y, id: Math.random() * 10000 | 0 });
+            zombiesOnScreen++;
+            
+            if (zombiesOnScreen >= 10) {
+                gameActive = false;
+                endGame();
+            }
+        }
+        
+        function killZombie(zombieId) {
+            const index = zombies.findIndex(z => z.id === zombieId);
+            if (index !== -1) {
+                zombies.splice(index, 1);
+                zombiesOnScreen--;
+                score += 10;
+                updateUI();
+                
+                if (zombiesOnScreen < 10) {
+                    spawnRate = Math.max(500, spawnRate - 100);
+                }
+            }
+        }
+        
+        function endGame() {
+            gameActive = false;
+            activeEl.textContent = 'Status: Game Over';
+            activeEl.style.color = '#ff5722';
+            gameOverModal.style.display = 'flex';
+            finalScoreEl.textContent = 'Final Score: ' + score;
+        }
+        
+        function updateUI() {
+            scoreEl.textContent = 'Score: ' + score;
+            zombiesEl.textContent = 'Zombies: ' + zombiesOnScreen + '/10';
+        }
+        
+        function animate(timestamp) {
+            if (!gameActive) return;
+            
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            drawBackground();
+            
+            // Spawn zombies
+            if (timestamp - lastSpawnTime > spawnRate) {
+                spawnZombie();
+                lastSpawnTime = timestamp;
+            }
+            
+            // Update and draw zombies
+            for (let i = zombies.length - 1; i >= 0; i--) {
+                const z = zombies[i];
+                
+                // Move zombie up
+                z.y -= 0.3;
+                
+                // Draw zombie
+                drawZombie(z);
+                
+                // Remove if off screen
+                if (z.y < -20) {
+                    zombies.splice(i, 1);
+                    zombiesOnScreen--;
+                    updateUI();
+                }
+            }
+            
+            frameCount++;
+            requestAnimationFrame(animate);
+        }
+        
+        canvas.addEventListener('click', (e) => {
+            if (!gameActive) return;
+            
+            const rect = canvas.getBoundingClientRect();
+            const x = e.clientX - rect.left;
+            const y = e.clientY - rect.top;
+            
+            // Check for zombie click
+            const index = zombies.findIndex(z => Math.hypot(z.x - x, z.y - y) < 30);
+            if (index !== -1) {
+                killZombie(zombies[index].id);
+            }
+        });
+        
+        // Show tutorial initially
+        setTimeout(() => {
+            tutorial.style.display = 'block';
+        }, 500);
+        
+        animate(0);
+    </script>
+</body>
+</html>

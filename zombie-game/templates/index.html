@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🧟 Zombie Survival Game</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+    <div class="game-container">
+        <div class="game-header">
+            <h1>🧟 Zombie Survival</h1>
+            <div class="score-board">
+                <span>Score: {{ score }}</span>
+                <span>Zombies: {{ zombie_count }}</span>
+            </div>
+        </div>
+        
+        <div class="canvas-wrapper">
+            <canvas id="gameCanvas" width="800" height="600"></canvas>
+        </div>
+        
+        <div class="game-info">
+            <p>🎯 <strong>Click zombies to shoot them!</strong></p>
+            <p>⚠️ Game Over when you have too many zombies on screen!</p>
+            <p>🔴 Spawning increases as score goes up!</p>
+        </div>
+        
+        <div id="gameOverModal" class="modal" style="display: {{ 'none' if is_game_over else 'block' }}">
+            <div class="modal-content">
+                <h2>🧟 GAME OVER</h2>
+                <p class="final-score">Your Final Score: {{ score }}</p>
+                <button id="restartBtn">🔄 Restart Game</button>
+            </div>
+        </div>
+        
+        <div id="gameModal" class="modal" style="display: {{ 'none' if not is_game_over else 'block' }}">
+            <div class="modal-content">
+                <h2>🎮 GAME IN PROGRESS</h2>
+                <p>Click on zombies to shoot them!</p>
+                <p>Don't let too many zombies appear!</p>
+                <button id="restartBtn" class="secondary-btn">🔄 Restart</button>
+            </div>
+        </div>
+        
+        <div class="controls">
+            <button id="restartBtn">🔄 Restart Game</button>
+        </div>
+    </div>
+    
+    <script src="{{ url_for('static', filename='game.js') }}"></script>
+</body>
+</html>

@@ -1,0 +1,303 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Zombie Survival Game</title>
+    <style>
+        body {
+            font-family: 'Arial', sans-serif;
+            background-color: #1a1a1a;
+            color: #fff;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        h1 {
+            text-align: center;
+            color: #8b4513;
+        }
+        .status {
+            display: flex;
+            justify-content: space-around;
+            margin: 20px 0;
+            padding: 15px;
+            background-color: #333;
+            border-radius: 8px;
+        }
+        .status div {
+            text-align: center;
+        }
+        .health-bar {
+            height: 20px;
+            background-color: #555;
+            border-radius: 10px;
+            overflow: hidden;
+            margin-top: 5px;
+        }
+        .health-fill {
+            height: 100%;
+            background-color: #4caf50;
+            transition: width 0.3s;
+        }
+        .health-fill.low {
+            background-color: #f44336;
+        }
+        .controls {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+            margin: 20px 0;
+        }
+        button {
+            padding: 15px;
+            font-size: 16px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+        .btn-heal { background-color: #4caf50; color: white; }
+        .btn-heal:hover { background-color: #45a049; }
+        .btn-sell { background-color: #ff9800; color: white; }
+        .btn-sell:hover { background-color: #e65100; }
+        .btn-buy { background-color: #2196f3; color: white; }
+        .btn-buy:hover { background-color: #1565c0; }
+        .btn-fight { background-color: #e53935; color: white; }
+        .btn-fight:hover { background-color: #c62828; }
+        .btn-loot { background-color: #9c27b0; color: white; }
+        .btn-loot:hover { background-color: #7b1fa2; }
+        .inventory {
+            margin-top: 20px;
+            padding: 15px;
+            background-color: #333;
+            border-radius: 8px;
+        }
+        .inventory-items {
+            margin-top: 10px;
+            list-style: none;
+            padding: 0;
+        }
+        .inventory-items li {
+            padding: 5px;
+            border-bottom: 1px solid #555;
+        }
+        .log {
+            margin-top: 20px;
+            padding: 15px;
+            background-color: #222;
+            border-radius: 8px;
+            min-height: 100px;
+        }
+        .log p {
+            margin: 5px 0;
+            font-size: 14px;
+        }
+    </style>
+</head>
+<body>
+    <h1>🧟 Zombie Survival Game</h1>
+    
+    <div class="status">
+        <div>
+            <strong>Health</strong>
+            <div class="health-bar">
+                <div class="health-fill" id="health-bar" style="width: 100%"></div>
+            </div>
+            <span id="health-text">100/100</span>
+        </div>
+        <div>
+            <strong>Gold</strong>
+            <span id="gold-text">0</span>
+        </div>
+    </div>
+
+    <form action="/action" method="POST" id="action-form">
+        <div class="controls">
+            <button type="button" onclick="heal()">
+                🏥 Heal (+10 HP)
+            </button>
+            <button type="button" onclick="sell()">
+                💰 Sell Item (+20 Gold)
+            </button>
+        </div>
+        <div class="controls">
+            <button type="button" onclick="buyPotion()">
+                💊 Buy Potion (Cost: 15 Gold)
+            </button>
+            <button type="button" onclick="buyGold()">
+                💰 Buy Gold (Cost: 25 Gold)
+            </button>
+        </div>
+        <div class="controls">
+            <button type="button" onclick="fight()">
+                ⚔️ Fight Zombie
+            </button>
+            <button type="button" onclick="loot()">
+                🎒 Loot Area
+            </button>
+        </div>
+    </form>
+
+    <div class="inventory">
+        <h3>🎒 Inventory</h3>
+        <ul class="inventory-items" id="inventory-list">
+            {% for item in inventory %}
+            <li>{{ item }}</li>
+            {% endfor %}
+        </ul>
+    </div>
+
+    <div class="log" id="game-log">
+        <p>Game started. Survive!</p>
+    </div>
+
+    <script>
+        let game = {
+            health: {{ health }},
+            gold: {{ gold }}
+        };
+
+        function updateUI() {
+            document.getElementById('health-bar').style.width = game.health + '%';
+            document.getElementById('health-text').textContent = game.health + '/100';
+            document.getElementById('health-bar').className = 'health-fill ' + (game.health < 30 ? 'low' : '');
+            document.getElementById('gold-text').textContent = game.gold;
+        }
+
+        function log(message) {
+            const log = document.getElementById('game-log');
+            const p = document.createElement('p');
+            p.textContent = message;
+            log.appendChild(p);
+            log.scrollTop = log.scrollHeight;
+        }
+
+        function heal() {
+            fetch('/action', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/x-www-form-urlencoded'},
+                body: new URLSearchParams({
+                    action: 'heal',
+                    amount: 10
+                })
+            }).then(() => {
+                game.health = Math.min(100, game.health + 10);
+                log('Healed by 10 HP');
+                updateUI();
+                fetch('/update');
+            });
+        }
+
+        function sell() {
+            fetch('/action', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/x-www-form-urlencoded'},
+                body: new URLSearchParams({
+                    action: 'sell'
+                })
+            }).then(() => {
+                game.gold += 20;
+                game.health = Math.max(0, game.health - 5);
+                log('Sold item for 20 Gold, took 5 HP damage');
+                updateUI();
+                fetch('/update');
+            });
+        }
+
+        function buyPotion() {
+            const gold = game.gold;
+            if (gold >= 15) {
+                fetch('/action', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/x-www-form-urlencoded'},
+                    body: new URLSearchParams({
+                        action: 'buy',
+                        item_name: 'potion'
+                    })
+                }).then(() => {
+                    game.gold -= 15;
+                    log('Bought a potion for 15 Gold');
+                    updateUI();
+                    fetch('/update');
+                });
+            } else {
+                log('Not enough gold!');
+            }
+        }
+
+        function buyGold() {
+            if (game.gold >= 25) {
+                fetch('/action', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/x-www-form-urlencoded'},
+                    body: new URLSearchParams({
+                        action: 'buy',
+                        item_name: 'gold'
+                    })
+                }).then(() => {
+                    game.gold += 25;
+                    log('Bought 25 Gold');
+                    updateUI();
+                    fetch('/update');
+                });
+            } else {
+                log('Not enough gold!');
+            }
+        }
+
+        function fight() {
+            fetch('/action', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/x-www-form-urlencoded'},
+                body: new URLSearchParams({
+                    action: 'fight'
+                })
+            }).then(() => {
+                game.health -= 10;
+                game.gold += 5;
+                log('Fought a zombie and took 10 HP damage, found 5 Gold');
+                updateUI();
+                fetch('/update');
+            });
+        }
+
+        function loot() {
+            fetch('/action', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/x-www-form-urlencoded'},
+                body: new URLSearchParams({
+                    action: 'loot'
+                })
+            }).then(() => {
+                log('Found loot!');
+                updateUI();
+                fetch('/update');
+            });
+        }
+
+        function gameEnd() {
+            if (game.health <= 0) {
+                log('🧟 You died! Game Over!');
+                alert('You died. Refresh to try again!');
+                game.health = 100;
+                game.gold = 0;
+                updateUI();
+            } else {
+                alert('Keep surviving!');
+            }
+        }
+
+        // Check game end on every update
+        updateUI();
+        gameEnd();
+
+        // Auto-check health
+        setInterval(() => {
+            if (game.health <= 0) {
+                gameEnd();
+            }
+        }, 5000);
+    </script>
+</body>
+</html>

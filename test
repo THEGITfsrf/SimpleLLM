@@ -1,0 +1,7 @@
+from routellm.controller import Controller
+
+client = Controller(
+  routers=["mf"],
+  strong_model="gpt-4-1106-preview",
+  weak_model="anyscale/mistralai/Mixtral-8x7B-Instruct-v0.1",
+)

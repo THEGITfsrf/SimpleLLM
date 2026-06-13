@@ -1,0 +1,143 @@
+# =========================
+# Python
+# =========================
+__pycache__/
+*.py[cod]
+*$py.class
+*.pyd
+*.pyo
+
+# Virtual Environments
+venv/
+.venv/
+env/
+ENV/
+
+# =========================
+# Build / Packaging
+# =========================
+build/
+dist/
+*.egg-info/
+.eggs/
+
+# =========================
+# IDEs
+# =========================
+.vscode/
+.idea/
+*.code-workspace
+
+# =========================
+# OS Files
+# =========================
+Thumbs.db
+Desktop.ini
+.DS_Store
+
+# =========================
+# Logs
+# =========================
+*.log
+logs/
+
+# =========================
+# Secrets
+# =========================
+.env
+.env.*
+*.key
+*.pem
+*.secret
+secrets.json
+config.local.json
+
+# =========================
+# Model Files
+# =========================
+*.pt
+*.pth
+*.ckpt
+*.safetensors
+*.bin
+*.gguf
+*.ggml
+*.tflite
+*.h5
+
+# Ignore all ONNX models...
+*.onnx
+
+# ...except Jarvis
+!Jarvis_20260313_215039.onnx
+
+# =========================
+# Datasets
+# =========================
+datasets/
+data/
+esc50/
+esc50.zip
+*.csv
+*.parquet
+
+# =========================
+# Audio Assets
+# =========================
+recordings/
+training_audio/
+temp_audio/
+*.wav
+*.mp3
+*.flac
+plugins/keys.json
+# =========================
+# Piper Models
+# =========================
+# TTS engine (Piper)
+piper_cli/
+piper_models/
+
+# =========================
+# Cache
+# =========================
+.cache/
+cache/
+tmp/
+temp/
+
+# HuggingFace
+.huggingface/
+hf_cache/
+
+# Ollama
+ollama_models/
+
+# PyTorch
+torch_cache/
+
+# =========================
+# Test Artifacts
+# =========================
+.pytest_cache/
+.coverage
+htmlcov/
+
+# =========================
+# Jupyter
+# =========================
+.ipynb_checkpoints/
+
+# =========================
+# Node
+# =========================
+node_modules/
+npm-debug.log*
+yarn-error.log*
+
+# =========================
+# Misc
+# =========================
+*.bak
+*.tmp
+*.swp

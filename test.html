@@ -1,0 +1,1080 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Local AI</title>
+
+<script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+
+<style>
+:root {
+  --bg: #f7f7f8;
+  --sidebar: #ffffff;
+  --surface: #ffffff;
+  --user-bubble: #10a37f;
+  --user-bubble-hover: #0f926f;
+  --ai-bg: #ffffff;
+  --text: #1f2328;
+  --text-secondary: #57606a;
+  --border: #e6e8eb;
+  --hover: #f2f4f7;
+  --code-bg: #f6f8fa;
+  --shadow: 0 8px 30px rgba(16, 24, 40, 0.06);
+}
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+html, body { height: 100%; }
+
+body {
+  display: flex;
+  background: var(--bg);
+  color: var(--text);
+  font-family: "Segoe UI", "SF Pro Text", -apple-system, BlinkMacSystemFont, Helvetica, Arial, sans-serif;
+}
+
+#sidebar {
+  width: 280px;
+  background: var(--sidebar);
+  border-right: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  padding: 18px 14px;
+  gap: 12px;
+}
+
+#newChat {
+  padding: 12px 16px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--surface);
+  color: var(--text);
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 600;
+  transition: all 0.2s;
+}
+
+#newChat:hover { background: var(--hover); }
+
+#chatList {
+  flex: 1;
+  overflow-y: auto;
+}
+
+.chat-item {
+  padding: 12px;
+  margin-bottom: 6px;
+  cursor: pointer;
+  color: var(--text-secondary);
+  border-radius: 10px;
+  font-size: 14px;
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  transition: all 0.15s;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.chat-item:hover { background: var(--hover); }
+
+.chat-item.active {
+  background: #eef4ff;
+  color: var(--text);
+}
+
+.chat-item-text {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.chat-delete {
+  opacity: 0;
+  color: var(--text-secondary);
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 4px;
+  font-size: 12px;
+  font-weight: 600;
+  transition: opacity 0.15s, color 0.15s;
+}
+
+.chat-item:hover .chat-delete { opacity: 1; }
+.chat-delete:hover { color: #cf222e; }
+
+#main {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+}
+
+#chat {
+  flex: 1;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 28px 22px;
+  width: min(960px, 100%);
+  margin: 0 auto;
+}
+
+.chat-wrapper {
+  display: flex;
+  justify-content: center;
+}
+
+.chat-inner {
+  width: min(880px, 100%);
+  margin: 0 auto;
+  display: flex;
+}
+
+.chat-wrapper.ai .chat-inner { justify-content: flex-start; }
+.chat-wrapper.user .chat-inner { justify-content: flex-end; }
+
+.msg-shell {
+  position: relative;
+  max-width: min(760px, 100%);
+}
+
+.msg {
+  padding: 12px 16px;
+  border-radius: 16px;
+  line-height: 1.5;
+  word-wrap: break-word;
+  font-size: 15px;
+}
+
+.msg.user {
+  background: var(--user-bubble);
+  color: white;
+  box-shadow: var(--shadow);
+}
+
+.msg.ai {
+  background: var(--ai-bg);
+  color: var(--text);
+  border: 1px solid var(--border);
+  box-shadow: var(--shadow);
+}
+
+.copy-btn {
+  position: absolute;
+  top: -10px;
+  right: -10px;
+  padding: 5px 9px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--surface);
+  color: var(--text-secondary);
+  font-size: 12px;
+  cursor: pointer;
+  opacity: 0;
+  transform: translateY(4px);
+  transition: all 0.15s ease;
+}
+
+.msg-shell:hover .copy-btn {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.copy-btn:hover {
+  color: var(--text);
+  background: var(--hover);
+}
+
+.thinking-indicator {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--text-secondary);
+  font-size: 13px;
+  padding: 12px 16px;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background: var(--surface);
+  box-shadow: var(--shadow);
+}
+
+.thinking-dots {
+  display: flex;
+  gap: 3px;
+}
+
+.thinking-dot {
+  width: 4px;
+  height: 4px;
+  background: var(--text-secondary);
+  border-radius: 50%;
+  animation: bounce 1.4s infinite;
+}
+
+.thinking-dot:nth-child(1) { animation-delay: 0s; }
+.thinking-dot:nth-child(2) { animation-delay: 0.2s; }
+.thinking-dot:nth-child(3) { animation-delay: 0.4s; }
+
+@keyframes bounce {
+  0%, 60%, 100% { opacity: 0.3; }
+  30% { opacity: 1; }
+}
+
+.thinking-block {
+  background: #f8fafc;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 12px;
+  margin: 8px 0;
+  font-size: 12px;
+  color: var(--text-secondary);
+  cursor: pointer;
+  user-select: none;
+  transition: all 0.2s;
+}
+
+.thinking-block:hover {
+  border-color: #d0d7de;
+  background: #f1f5f9;
+}
+
+.thinking-block.expanded { max-height: 500px; }
+.thinking-block.collapsed {
+  max-height: 30px;
+  overflow: hidden;
+}
+
+.thinking-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.thinking-arrow {
+  display: inline-block;
+  transition: transform 0.2s;
+}
+
+.thinking-block.expanded .thinking-arrow { transform: rotate(90deg); }
+
+.thinking-content {
+  margin-top: 8px;
+  max-height: 300px;
+  overflow-y: auto;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.trace-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.trace-item {
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: #f8fafc;
+  overflow: hidden;
+}
+
+.trace-head {
+  width: 100%;
+  text-align: left;
+  border: none;
+  background: transparent;
+  color: var(--text-secondary);
+  font-size: 13px;
+  padding: 8px 10px;
+  cursor: pointer;
+}
+
+.trace-head:hover {
+  background: #eef2f7;
+}
+
+.trace-body {
+  border-top: 1px solid var(--border);
+  padding: 10px;
+  font-size: 12px;
+  color: var(--text-secondary);
+  white-space: pre-wrap;
+  word-break: break-word;
+  display: none;
+}
+
+.trace-item.open .trace-body {
+  display: block;
+}
+
+.msg a {
+  color: #0969da;
+  text-decoration: none;
+}
+
+.msg a:hover { text-decoration: underline; }
+
+.msg code {
+  background: var(--code-bg);
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-size: 0.9em;
+  font-family: "Monaco", "Courier New", monospace;
+}
+
+.msg pre {
+  background: var(--code-bg);
+  border: 1px solid var(--border);
+  padding: 12px;
+  border-radius: 8px;
+  overflow-x: auto;
+  margin: 8px 0;
+}
+
+.msg pre code {
+  background: none;
+  padding: 0;
+}
+
+.msg ul, .msg ol {
+  margin-left: 20px;
+  margin-top: 8px;
+}
+
+.msg li { margin-bottom: 4px; }
+
+#inputBar {
+  display: flex;
+  padding: 18px 20px 24px;
+  border-top: 1px solid var(--border);
+  justify-content: center;
+  background: linear-gradient(180deg, rgba(247,247,248,0.85), rgba(247,247,248,1));
+}
+
+.input-wrap {
+  width: min(900px, 100%);
+  display: flex;
+  align-items: flex-end;
+  gap: 10px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 10px;
+  box-shadow: var(--shadow);
+}
+
+
+#thinkToggleWrap {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--text-secondary);
+  font-size: 13px;
+  padding: 8px 10px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  white-space: nowrap;
+}
+
+#thinkToggle {
+  accent-color: var(--user-bubble);
+  width: 14px;
+  height: 14px;
+  cursor: pointer;
+}
+
+#input {
+  flex: 1;
+  padding: 14px 16px;
+  border: none;
+  outline: none;
+  background: transparent;
+  color: var(--text);
+  border-radius: 12px;
+  font-size: 15px;
+  resize: none;
+  min-height: 48px;
+  max-height: 200px;
+}
+
+.input-wrap:focus-within {
+  border-color: #bfd2ff;
+  box-shadow: 0 0 0 3px rgba(9, 105, 218, 0.12);
+}
+
+#input::placeholder { color: var(--text-secondary); }
+
+#send {
+  padding: 10px 16px;
+  border: none;
+  background: var(--user-bubble);
+  color: white;
+  border-radius: 12px;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 500;
+  transition: background 0.2s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+#send:hover { background: var(--user-bubble-hover); }
+
+#send:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+#chat::-webkit-scrollbar { width: 8px; }
+#chat::-webkit-scrollbar-track { background: transparent; }
+#chat::-webkit-scrollbar-thumb {
+  background: #c3cad3;
+  border-radius: 4px;
+}
+#chat::-webkit-scrollbar-thumb:hover { background: #aab3be; }
+
+#chatList::-webkit-scrollbar { width: 6px; }
+#chatList::-webkit-scrollbar-thumb {
+  background: #d0d7de;
+  border-radius: 3px;
+}
+#chatList::-webkit-scrollbar-thumb:hover { background: #b7c0ca; }
+
+@media (max-width: 900px) {
+  #sidebar { display: none; }
+  #chat { padding: 20px 12px; }
+  .msg { font-size: 14px; }
+  .copy-btn {
+    opacity: 1;
+    transform: none;
+  }
+}
+</style>
+</head>
+
+<body>
+<div id="sidebar">
+  <button id="newChat">+ New Chat</button>
+  <div id="chatList"></div>
+</div>
+
+<div id="main">
+  <div id="chat"></div>
+
+  <div id="inputBar">
+    <div class="input-wrap">
+      <textarea id="input" placeholder="Message..."></textarea>
+      <label id="thinkToggleWrap" for="thinkToggle">
+        <input id="thinkToggle" type="checkbox" />
+        <span>Think</span>
+      </label>
+      <button id="send">Send</button>
+    </div>
+  </div>
+</div>
+
+<script>
+async function deriveKey(password, salt) {
+  const enc = new TextEncoder();
+  const keyMaterial = await crypto.subtle.importKey(
+    "raw", enc.encode(password), "PBKDF2", false, ["deriveKey"]
+  );
+  return crypto.subtle.deriveKey(
+    { name: "PBKDF2", salt, iterations: 600_000, hash: "SHA-256" },
+    keyMaterial,
+    { name: "AES-CBC", length: 256 },
+    false,
+    ["encrypt", "decrypt"]
+  );
+}
+
+async function encryptMessage(text, password) {
+  const enc = new TextEncoder();
+  const salt = crypto.getRandomValues(new Uint8Array(16));
+  const iv   = crypto.getRandomValues(new Uint8Array(16));
+  const key  = await deriveKey(password, salt);
+
+  const ciphertext = await crypto.subtle.encrypt(
+    { name: "AES-CBC", iv },
+    key,
+    enc.encode(text)
+  );
+
+  // Pack: salt (16) + iv (16) + ciphertext → base64
+  const combined = new Uint8Array(16 + 16 + ciphertext.byteLength);
+  combined.set(salt, 0);
+  combined.set(iv, 16);
+  combined.set(new Uint8Array(ciphertext), 32);
+  return btoa(String.fromCharCode(...combined));
+}
+function safeParseChats(raw) {
+  try {
+    const parsed = JSON.parse(raw || "{}");
+    return parsed && typeof parsed === "object" ? parsed : {};
+  } catch {
+    return {};
+  }
+}
+
+function escapeHtml(text) {
+  return String(text)
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#39;");
+}
+
+function safeMarkdownToHtml(text) {
+  try {
+    return marked.parse(text);
+  } catch {
+    return `<pre>${escapeHtml(text)}</pre>`;
+  }
+}
+
+function parseEventPayload(raw) {
+  const source = String(raw || "").trim();
+  if (!source || !source.startsWith("[")) return null;
+
+  const candidates = [
+    source,
+    source + "]",
+  ];
+
+  for (const candidate of candidates) {
+    try {
+      const fixed = candidate.replace(/,\s*]/g, "]");
+      const parsed = JSON.parse(fixed);
+      if (Array.isArray(parsed)) return parsed;
+    } catch {
+    }
+  }
+  return null;
+}
+
+function normalizeRenderableContent(text) {
+  const source = String(text || "");
+  const maxLen = 120000;
+  let normalized = source.length > maxLen
+    ? source.slice(0, maxLen) + "\n\n[Content truncated for display]"
+    : source;
+
+  // Remove tool/agent traces that leak into responses, but preserve THINK blocks.
+  normalized = normalized.replace(/\[TOOL\][\s\S]*?(?=\[THINK_START\]|\[THINK_END\]|$)/g, "");
+  normalized = normalized.replace(/(^|\n)\s*Agent used[^\n]*(\n|$)/g, "\n");
+  normalized = normalized.replace(/(^|\n)\s*(At line:\d+ char:\d+|CategoryInfo\s*:|FullyQualifiedErrorId\s*:)[^\n]*(\n|$)/g, "\n");
+
+  // Keep tool text, but strip problematic huge payload segments.
+  normalized = normalized.replace(/data:image\/[a-zA-Z+.-]+;base64,[A-Za-z0-9+/=\s]+/g, "[image data omitted]");
+
+  // Collapse extremely long unbroken tokens (typically base64/serialized blobs).
+  normalized = normalized.replace(/[A-Za-z0-9+/=]{800,}/g, "[large binary/blob omitted]");
+
+  // Cleanup excessive blank lines left by removals.
+  normalized = normalized.replace(/\n{3,}/g, "\n\n").trim();
+
+  return normalized;
+}
+
+function splitThinking(content) {
+  const text = normalizeRenderableContent(content);
+  const thinkPattern = /\[THINK_START\]([\s\S]*?)\[THINK_END\]/g;
+  const thinkingBlocks = [];
+  let match;
+  while ((match = thinkPattern.exec(text)) !== null) {
+    if (match[1] && match[1].trim()) thinkingBlocks.push(match[1].trim());
+  }
+
+  const display = text
+    .replace(thinkPattern, " ")
+    .replace(/\[THINK_START\]|\[THINK_END\]/g, " ")
+    .replace(/(^|\n)\s*Thinking:\s*/g, "\n")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
+
+  return {
+    display,
+    thinking: thinkingBlocks.join("\n\n")
+  };
+}
+
+function estimateThoughtSeconds(thinkingText) {
+  const words = String(thinkingText || "").trim().split(/\s+/).filter(Boolean).length;
+  return Math.max(1, Math.round(words / 25));
+}
+
+function getCleanDisplayText(content) {
+  const events = parseEventPayload(content);
+  if (events) {
+    return events
+      .filter(evt => evt && evt.type === "response")
+      .map(evt => String(evt.content || ""))
+      .join("")
+      .replace(/\n{3,}/g, "\n\n")
+      .trim();
+  }
+  return String(content || "")
+    .replace(/\[THINK_START\][\s\S]*?\[THINK_END\]/g, " ")
+    .replace(/\[TOOL\][\s\S]*?(?=\[THINK_START\]|\[TOOL\]|$)/g, " ")
+    .replace(/(^|\n)\s*Thinking:\s*/g, "\n")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
+}
+
+function parseAiTrace(content) {
+  const eventsPayload = parseEventPayload(content);
+  if (eventsPayload) {
+    const events = [];
+    const pushMerged = (kind, text) => {
+      const cleanText = String(text || "");
+      if (!cleanText && kind !== "stop") return;
+      const last = events.length ? events[events.length - 1] : null;
+
+      if (kind === "response") {
+        if (last && last.type === "response") {
+          last.text += cleanText;
+        } else {
+          events.push({ type: "response", text: cleanText });
+        }
+        return;
+      }
+
+      if (kind === "thinking") {
+        if (last && last.type === "thought") {
+          last.text += cleanText;
+          last.seconds = estimateThoughtSeconds(last.text);
+        } else {
+          events.push({
+            type: "thought",
+            seconds: estimateThoughtSeconds(cleanText),
+            text: cleanText,
+          });
+        }
+        return;
+      }
+
+      if (kind === "tool") {
+        if (last && last.type === "tool" && last.tool === "tool") {
+          last.text += cleanText ? `\n${cleanText}` : "";
+        } else {
+          events.push({ type: "tool", tool: "tool", text: cleanText || "(no output)" });
+        }
+        return;
+      }
+
+      if (kind === "stop") {
+        const stopText = cleanText || "loop detected";
+        if (last && last.type === "tool" && last.tool === "system") {
+          last.text += `\n${stopText}`;
+        } else {
+          events.push({ type: "tool", tool: "system", text: stopText });
+        }
+      }
+    };
+
+    for (const evt of eventsPayload) {
+      if (!evt || typeof evt !== "object") continue;
+      const type = String(evt.type || "");
+      const text = String(evt.content || "");
+      pushMerged(type, text);
+    }
+    return events;
+  }
+
+  const text = String(content || "");
+  const marker = /\[THINK_START\][\s\S]*?\[THINK_END\]|\[TOOL\][\s\S]*?(?=\[THINK_START\]|\[TOOL\]|$)/g;
+  const events = [];
+  let cursor = 0;
+  let m;
+
+  while ((m = marker.exec(text)) !== null) {
+    const raw = m[0];
+    const idx = m.index;
+    const before = text.slice(cursor, idx).trim();
+    if (before) events.push({ type: "response", text: before });
+
+    if (raw.startsWith("[THINK_START]")) {
+      const thinking = raw
+        .replace("[THINK_START]", "")
+        .replace("[THINK_END]", "")
+        .replace(/^\s*Thinking:\s*/i, "")
+        .trim();
+      if (thinking) {
+        events.push({
+          type: "thought",
+          seconds: estimateThoughtSeconds(thinking),
+          text: thinking
+        });
+      }
+    } else if (raw.startsWith("[TOOL]")) {
+      const toolText = raw.replace("[TOOL]", "").trim();
+      const toolMatch = toolText.match(/Agent used\s+([^\s]+)\s*([\s\S]*)/i);
+      const tool = toolMatch?.[1] || "tool";
+      const result = (toolMatch?.[2] || toolText).trim();
+      events.push({ type: "tool", tool, text: result || "(no output)" });
+    }
+
+    cursor = idx + raw.length;
+  }
+
+  const tail = text.slice(cursor).trim();
+  if (tail) events.push({ type: "response", text: tail });
+
+  return events;
+}
+
+let chats = safeParseChats(localStorage.getItem("chats"));
+let currentChat = null;
+let isLoading = false;
+let activeRequests = {};
+let thinkEnabled = localStorage.getItem("thinkEnabled");
+if (thinkEnabled === null) thinkEnabled = "1";
+
+function save() {
+  localStorage.setItem("chats", JSON.stringify(chats));
+}
+
+function generateUniqueId() {
+  return Date.now().toString(36) + Math.random().toString(36).substr(2);
+}
+
+async function newChat() {
+  const id = generateUniqueId();
+  chats[id] = { messages: [] };
+  currentChat = id;
+  save();
+  renderSidebar();
+  renderChat();
+}
+
+function deleteChat(id) {
+  if (Object.keys(chats).length === 1) {
+    newChat();
+    return;
+  }
+  delete chats[id];
+  save();
+  if (currentChat === id) {
+    currentChat = Object.keys(chats)[0];
+  }
+  renderSidebar();
+  renderChat();
+}
+
+function renderSidebar() {
+  const list = document.getElementById("chatList");
+  list.innerHTML = "";
+
+  Object.keys(chats).forEach(id => {
+    const div = document.createElement("div");
+    div.className = "chat-item" + (id === currentChat ? " active" : "");
+
+    const textDiv = document.createElement("div");
+    textDiv.className = "chat-item-text";
+    textDiv.textContent = chats[id].messages[0]?.content?.slice(0, 30) || "New Chat";
+    textDiv.onclick = () => {
+      currentChat = id;
+      renderSidebar();
+      renderChat();
+    };
+
+    const deleteBtn = document.createElement("button");
+    deleteBtn.className = "chat-delete";
+    deleteBtn.textContent = "Delete";
+    deleteBtn.onclick = (e) => {
+      e.stopPropagation();
+      deleteChat(id);
+    };
+
+    div.appendChild(textDiv);
+    div.appendChild(deleteBtn);
+    list.appendChild(div);
+  });
+}
+
+function toggleThinkingBlock(element) {
+  element.classList.toggle("expanded");
+  element.classList.toggle("collapsed");
+}
+
+function createMessageElement(role, content) {
+  const wrapper = document.createElement("div");
+  wrapper.className = "chat-wrapper " + role;
+
+  const inner = document.createElement("div");
+  inner.className = "chat-inner";
+
+  const shell = document.createElement("div");
+  shell.className = "msg-shell";
+
+  const div = document.createElement("div");
+  div.className = "msg " + role;
+
+  const displayContent = role === "ai" ? getCleanDisplayText(content) : String(content || "");
+
+  if (role === "ai") {
+    const events = parseAiTrace(content);
+    const traceEvents = events.filter(e => e.type !== "response");
+    const responseText = events.filter(e => e.type === "response").map(e => e.text).join("\n\n").trim();
+
+    if (traceEvents.length > 0) {
+      const traceList = document.createElement("div");
+      traceList.className = "trace-list";
+
+      traceEvents.forEach(evt => {
+        const item = document.createElement("div");
+        item.className = "trace-item";
+        const head = document.createElement("button");
+        head.className = "trace-head";
+        head.type = "button";
+        const body = document.createElement("div");
+        body.className = "trace-body";
+
+        if (evt.type === "thought") {
+          head.textContent = `Thought for ${evt.seconds} seconds (click to expand)`;
+          body.textContent = evt.text;
+        } else if (evt.type === "tool") {
+          head.textContent = `Used tool ${evt.tool} (click to show result)`;
+          body.textContent = evt.text;
+        }
+
+        head.onclick = (e) => {
+          e.stopPropagation();
+          item.classList.toggle("open");
+        };
+
+        item.appendChild(head);
+        item.appendChild(body);
+        traceList.appendChild(item);
+      });
+
+      div.appendChild(traceList);
+    }
+
+    if (responseText) {
+      const responseDiv = document.createElement("div");
+      responseDiv.innerHTML = safeMarkdownToHtml(responseText);
+      div.appendChild(responseDiv);
+    }
+  } else {
+    div.innerHTML = safeMarkdownToHtml(displayContent);
+  }
+
+  const copyBtn = document.createElement("button");
+  copyBtn.className = "copy-btn";
+  copyBtn.textContent = "Copy";
+  copyBtn.onclick = async (e) => {
+    e.stopPropagation();
+    const copyText = displayContent || "";
+    try {
+      await navigator.clipboard.writeText(copyText);
+      copyBtn.textContent = "Copied";
+    } catch {
+      const textArea = document.createElement("textarea");
+      textArea.value = copyText;
+      document.body.appendChild(textArea);
+      textArea.select();
+      document.execCommand("copy");
+      textArea.remove();
+      copyBtn.textContent = "Copied";
+    }
+    setTimeout(() => { copyBtn.textContent = "Copy"; }, 1200);
+  };
+
+  shell.appendChild(copyBtn);
+  shell.appendChild(div);
+  inner.appendChild(shell);
+  wrapper.appendChild(inner);
+
+  return wrapper;
+}
+
+function renderChat() {
+  const chat = document.getElementById("chat");
+  chat.innerHTML = "";
+
+  if (!chats[currentChat]) return;
+
+  chats[currentChat].messages.forEach(m => {
+    chat.appendChild(createMessageElement(m.role, m.content));
+  });
+
+  chat.scrollTop = chat.scrollHeight;
+}
+
+function addMsg(role, content, chatId) {
+  if (!chats[chatId]) return;
+  chats[chatId].messages.push({ role, content });
+  save();
+  if (chatId === currentChat) {
+    renderChat();
+  }
+}
+
+function showThinkingIndicator() {
+  const chat = document.getElementById("chat");
+  const wrapper = document.createElement("div");
+  wrapper.className = "chat-wrapper ai";
+  wrapper.id = "thinking-indicator";
+
+  const inner = document.createElement("div");
+  inner.className = "chat-inner";
+
+  const indicator = document.createElement("div");
+  indicator.className = "thinking-indicator";
+  indicator.innerHTML = `
+    AI is thinking
+    <div class="thinking-dots">
+      <div class="thinking-dot"></div>
+      <div class="thinking-dot"></div>
+      <div class="thinking-dot"></div>
+    </div>
+  `;
+
+  inner.appendChild(indicator);
+  wrapper.appendChild(inner);
+  chat.appendChild(wrapper);
+  chat.scrollTop = chat.scrollHeight;
+}
+
+function removeThinkingIndicator() {
+  const indicator = document.getElementById("thinking-indicator");
+  if (indicator) indicator.remove();
+}
+
+async function send() {
+  const input = document.getElementById("input");
+  const text = input.value.trim();
+  if (!text || isLoading) return;
+
+  const chatId = currentChat;
+  isLoading = true;
+  document.getElementById("send").disabled = true;
+
+  addMsg("user", text, chatId);
+  input.value = "";
+  input.style.height = "auto";
+
+  if (chatId === currentChat) {
+    showThinkingIndicator();
+  }
+
+  let aiMsg = "";
+  activeRequests[chatId] = true;
+
+  try {
+    const think = thinkEnabled === "1" ? "1" : "0";
+    const SHARED_SECRET = "TOP_SECRET_KEY"; // must match your server
+
+	const encrypted = await encryptMessage(text, SHARED_SECRET);
+	const res = await fetch(`/chat?id=${chatId}&message=${encodeURIComponent(encrypted)}&think=${think}`);
+    const reader = res.body.getReader();
+    const decoder = new TextDecoder();
+
+    if (chatId === currentChat) {
+      removeThinkingIndicator();
+    }
+
+    const aiWrapper = document.createElement("div");
+    aiWrapper.className = "chat-wrapper ai";
+    const aiInner = document.createElement("div");
+    aiInner.className = "chat-inner";
+    const aiShell = document.createElement("div");
+    aiShell.className = "msg-shell";
+    const aiDiv = document.createElement("div");
+    aiDiv.className = "msg ai";
+
+    const copyBtn = document.createElement("button");
+    copyBtn.className = "copy-btn";
+    copyBtn.textContent = "Copy";
+    copyBtn.onclick = async (e) => {
+      e.stopPropagation();
+      const copyText = getCleanDisplayText(aiMsg);
+      try {
+        await navigator.clipboard.writeText(copyText);
+        copyBtn.textContent = "Copied";
+      } catch {
+        const textArea = document.createElement("textarea");
+        textArea.value = copyText;
+        document.body.appendChild(textArea);
+        textArea.select();
+        document.execCommand("copy");
+        textArea.remove();
+        copyBtn.textContent = "Copied";
+      }
+      setTimeout(() => { copyBtn.textContent = "Copy"; }, 1200);
+    };
+
+    aiShell.appendChild(copyBtn);
+    aiShell.appendChild(aiDiv);
+    aiInner.appendChild(aiShell);
+    aiWrapper.appendChild(aiInner);
+
+    if (chatId === currentChat) {
+      document.getElementById("chat").appendChild(aiWrapper);
+    }
+
+    while (true) {
+      const { value, done } = await reader.read();
+      if (done) break;
+      aiMsg += decoder.decode(value);
+
+      if (chatId === currentChat) {
+        const displayContent = getCleanDisplayText(aiMsg);
+        aiDiv.innerHTML = displayContent ? safeMarkdownToHtml(displayContent) : "";
+        document.getElementById("chat").scrollTop = document.getElementById("chat").scrollHeight;
+      }
+    }
+
+    addMsg("ai", aiMsg, chatId);
+
+    if (chatId === currentChat) {
+      renderChat();
+    }
+  } finally {
+    delete activeRequests[chatId];
+    isLoading = false;
+    document.getElementById("send").disabled = false;
+  }
+}
+
+document.getElementById("send").onclick = send;
+const inputEl = document.getElementById("input");
+inputEl.addEventListener("input", () => {
+  inputEl.style.height = "auto";
+  inputEl.style.height = `${Math.min(inputEl.scrollHeight, 200)}px`;
+});
+inputEl.addEventListener("keydown", e => {
+  if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) {
+    e.preventDefault();
+    send();
+  }
+});
+document.getElementById("newChat").onclick = newChat;
+document.getElementById("thinkToggle").checked = thinkEnabled === "1";
+document.getElementById("thinkToggle").addEventListener("change", (e) => {
+  thinkEnabled = e.target.checked ? "1" : "0";
+  localStorage.setItem("thinkEnabled", thinkEnabled);
+});
+
+if (Object.keys(chats).length === 0) newChat();
+else {
+  currentChat = Object.keys(chats)[0];
+  renderSidebar();
+  renderChat();
+}
+</script>
+
+</body>
+</html>

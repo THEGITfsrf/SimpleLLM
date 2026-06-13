@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Three.js Multiplier Game</title>
+    <style>
+        body { margin: 0; overflow: hidden; font-family: Arial, sans-serif; }
+        #info { position: absolute; top: 10px; left: 10px; color: white; z-index: 100; }
+        #multiplier-display { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); font-size: 72px; font-weight: bold; color: #fff; text-shadow: 2px 2px 4px rgba(0,0,0,0.5); z-index: 100; }
+    </style>
+</head>
+<body>
+    <div id="info">Click to generate multiplier | Scroll to speed up</div>
+    <div id="multiplier-display">1.00x</div>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script>
+        let multiplier = 1.0;
+        let isClicking = false;
+        let clickCount = 0;
+        const targetMax = 1.5;
+        const targetMin = 0.8;
+
+        const display = document.getElementById('multiplier-display');
+        
+        function updateDisplay() {
+            display.textContent = multiplier.toFixed(2) + 'x';
+            display.style.color = `hsl(${Math.min(20, multiplier * 100)}, 100%, 50%)`;
+        }
+
+        const scene = new THREE.Scene();
+        scene.background = new THREE.Color(0x1a1a2e);
+
+        const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+        camera.position.z = 5;
+
+        const renderer = new THREE.WebGLRenderer({ antialias: true });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        document.body.appendChild(renderer.domElement);
+
+        const geometry = new THREE.IcosahedronGeometry(1.5, 1);
+        const material = new THREE.MeshStandardMaterial({ 
+            color: 0xff00ff,
+            emissive: 0x00ffff,
+            wireframe: true
+        });
+        const mesh = new THREE.Mesh(geometry, material);
+        scene.add(mesh);
+
+        const orbitControls = new THREE.OrbitControls(camera, renderer.domElement);
+
+        const clock = new THREE.Clock();
+
+        function animate() {
+            requestAnimationFrame(animate);
+
+            const delta = clock.getDelta();
+            const rotationSpeed = delta * 0.5;
+
+            mesh.rotation.x += rotationSpeed;
+            mesh.rotation.y += rotationSpeed;
+            mesh.rotation.z += rotationSpeed;
+
+            if (isClicking && multiplier < targetMax) {
+                multiplier += 0.1 * delta * 3;
+                if (multiplier > targetMax) multiplier = targetMax;
+            }
+
+            if (multiplier > targetMin && !isClicking) {
+                multiplier -= 0.05 * delta;
+                if (multiplier < targetMin) multiplier = targetMin;
+            }
+
+            if (multiplier > targetMax) {
+                multiplier = targetMin;
+            }
+
+            updateDisplay();
+            orbitControls.update();
+            renderer.render(scene, camera);
+        }
+
+        animate();
+
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        });
+
+        document.addEventListener('click', () => {
+            if (multiplier < targetMax) {
+                isClicking = true;
+                clickCount++;
+            }
+        });
+
+        document.addEventListener('click', () => {
+            if (isClicking && multiplier < targetMax) {
+                isClicking = false;
+                multiplier = targetMax;
+            }
+        });
+
+        document.addEventListener('keydown', (e) => {
+            if (e.code === 'Space') {
+                if (isClicking && multiplier < targetMax) {
+                    isClicking = false;
+                    multiplier = targetMax;
+                }
+            }
+        });
+
+        window.addEventListener('scroll', (e) => {
+            const scrollDelta = e.deltaY > 0 ? 0.05 : -0.05;
+            if (scrollDelta > 0) {
+                multiplier += scrollDelta;
+                if (multiplier > targetMax) multiplier = targetMax;
+            } else {
+                multiplier += scrollDelta;
+                if (multiplier < targetMin) multiplier = targetMin;
+            }
+        });
+
+        async function fetchMultiplier() {
+            try {
+                const response = await fetch('/api/multiplier');
+                const data = await response.text();
+                multiplier = parseFloat(data);
+                if (multiplier > targetMax) multiplier = targetMax;
+                if (multiplier < targetMin) multiplier = targetMin;
+                updateDisplay();
+            } catch (error) {
+                console.error('Error fetching multiplier:', error);
+            }
+        }
+
+        fetchMultiplier();
+    </script>
+</body>
+</html>
